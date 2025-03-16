@@ -410,18 +410,18 @@ function App() {
                       <table className="w-full">
                         <thead>
                           <tr className="text-gray-400 text-sm">
-                            <th className="text-left pb-4">Material Name</th>
-                            <th className="text-left pb-4">Quantity (Kg)</th>
-                            <th className="text-left pb-4">Rate (₹/Kg)</th>
-                            <th className="text-left pb-4">Total Cost</th>
-                            <th className="text-left pb-4">Certification Required</th>
-                            <th className="text-left pb-4"></th>
+                            <th className="text-left pb-4 w-1/4">Material Name</th>
+                            <th className="text-left pb-4 w-1/6">Quantity (Kg)</th>
+                            <th className="text-left pb-4 w-1/6">Rate (₹/Kg)</th>
+                            <th className="text-left pb-4 w-1/6">Total Cost</th>
+                            <th className="text-left pb-4 w-1/6">Certification Required</th>
+                            <th className="text-left pb-4 w-12"></th>
                           </tr>
                         </thead>
                         <tbody>
                           {materials.map(material => (
                             <tr key={material.id} className="bg-gray-700/50 rounded-lg">
-                              <td className="p-3">
+                              <td className="p-3 w-1/4">
                                 <input 
                                   type="text" 
                                   placeholder="Enter material name" 
@@ -430,7 +430,7 @@ function App() {
                                   onChange={(e) => handleMaterialChange(material.id, 'name', e.target.value)}
                                 />
                               </td>
-                              <td className="p-3">
+                              <td className="p-3 w-1/6">
                                 <input 
                                   type="number" 
                                   placeholder="0.00" 
@@ -439,7 +439,7 @@ function App() {
                                   onChange={(e) => handleMaterialChange(material.id, 'quantity', parseFloat(e.target.value) || 0)}
                                 />
                               </td>
-                              <td className="p-3">
+                              <td className="p-3 w-1/6">
                                 <input 
                                   type="number" 
                                   placeholder="0.00" 
@@ -448,8 +448,8 @@ function App() {
                                   onChange={(e) => handleMaterialChange(material.id, 'rate', parseFloat(e.target.value) || 0)}
                                 />
                               </td>
-                              <td className="p-3 text-white">₹{material.totalCost.toFixed(2)}</td>
-                              <td className="p-3">
+                              <td className="p-3 w-1/6 text-white">₹{material.totalCost.toFixed(2)}</td>
+                              <td className="p-3 w-1/6">
                                 <select 
                                   className="w-full bg-transparent text-white focus:outline-none border-0"
                                   value={guardrails.certifications[0]}
@@ -460,7 +460,7 @@ function App() {
                                   <option value="HACCP">HACCP</option>
                                 </select>
                               </td>
-                              <td className="p-3">
+                              <td className="p-3 w-12">
                                 {materials.length > 1 && (
                                   <button 
                                     className="text-gray-400 hover:text-red-500"
