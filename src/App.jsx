@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
+import ProcessingPage from './ProcessingPage'
 
 function App() {
   const [view, setView] = useState('dashboard'); // 'dashboard' or 'newExecution'
@@ -8,6 +9,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [processingExecution, setProcessingExecution] = useState(null);
+  
+  // File input reference
+  const fileInputRef = useRef(null);
   
   // New execution form state
   const [executionName, setExecutionName] = useState('');
@@ -24,6 +30,22 @@ function App() {
   useEffect(() => {
     fetchExecutions();
     fetchRecentActivity();
+    
+    // Create file input element for CSV upload
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.csv';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', handleCsvFileChange);
+    fileInputRef.current = fileInput;
+    document.body.appendChild(fileInput);
+    
+    return () => {
+      // Clean up the file input element when component unmounts
+      if (fileInputRef.current) {
+        document.body.removeChild(fileInputRef.current);
+      }
+    };
   }, []);
   
   const fetchExecutions = async () => {
@@ -96,6 +118,94 @@ function App() {
     });
   };
   
+  const handleImportCsv = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
+  const handleCsvFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    setCsvUploading(true);
+    setError(null);
+    
+    try {
+      console.log('Selected file:', file.name, file.type, file.size);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      console.log('Sending request to import CSV...');
+      
+      const response = await fetch('http://localhost:5001/api/import-materials-csv', {
+        method: 'POST',
+        body: formData,
+        // Don't set Content-Type header when using FormData, browser will set it automatically with boundary
+      });
+      
+      console.log('Response status:', response.status);
+      
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Response data:', data);
+      
+      if (data.success) {
+        // Update materials with the imported data
+        setMaterials(data.materials);
+        
+        // Update certification if provided
+        if (data.certification) {
+          setGuardrails(prev => ({
+            ...prev,
+            certifications: [data.certification]
+          }));
+        }
+        
+        setSuccess('Materials imported successfully');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(data.message || 'Failed to import CSV');
+      }
+    } catch (err) {
+      setError('Error importing CSV: ' + err.message);
+      console.error('Error:', err);
+    } finally {
+      setCsvUploading(false);
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+  
+  // Start processing materials
+  const startProcessing = async (executionId) => {
+    try {
+      const response = await fetch(`http://localhost:5001/api/process-materials/${executionId}`, {
+        method: 'POST'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setProcessingExecution(data.execution);
+      } else {
+        setError(data.message || 'Failed to start processing');
+      }
+    } catch (err) {
+      setError('Error starting processing: ' + err.message);
+      console.error('Error:', err);
+    }
+  };
+  
   const handleCreateExecution = async () => {
     if (!executionName || materials.some(m => !m.name || m.quantity <= 0 || m.rate <= 0)) {
       setError('Please fill in all required fields');
@@ -122,21 +232,18 @@ function App() {
       
       if (data.success) {
         setSuccess('Execution created successfully');
-        setTimeout(() => {
-          setSuccess(null);
-          setView('dashboard');
-          fetchExecutions();
-          fetchRecentActivity();
-          
-          // Reset form
-          setExecutionName('');
-          setMaterials([{ id: 1, name: '', quantity: 0, rate: 0, totalCost: 0 }]);
-          setGuardrails({
-            maxPricePerKg: '',
-            deliveryTimeline: '',
-            certifications: ['FSSAI']
-          });
-        }, 2000);
+        
+        // Start processing the materials
+        startProcessing(data.execution._id);
+        
+        // Reset form
+        setExecutionName('');
+        setMaterials([{ id: 1, name: '', quantity: 0, rate: 0, totalCost: 0 }]);
+        setGuardrails({
+          maxPricePerKg: '',
+          deliveryTimeline: '',
+          certifications: ['FSSAI']
+        });
       } else {
         setError(data.message || 'Failed to create execution');
       }
@@ -152,6 +259,13 @@ function App() {
     // In a real app, this would save to local storage or backend
     setSuccess('Draft saved successfully');
     setTimeout(() => setSuccess(null), 2000);
+  };
+  
+  // Handle processing cancellation
+  const handleCancelProcessing = () => {
+    setProcessingExecution(null);
+    fetchExecutions();
+    fetchRecentActivity();
   };
   
   const formatTimeAgo = (dateString) => {
@@ -179,6 +293,11 @@ function App() {
   // Calculate total cost for execution summary
   const totalMaterials = materials.length;
   const estimatedCost = materials.reduce((sum, material) => sum + (material.quantity * material.rate), 0);
+  
+  // If there's an active processing execution, show the processing page
+  if (processingExecution) {
+    return <ProcessingPage execution={processingExecution} onCancel={handleCancelProcessing} />;
+  }
   
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -393,9 +512,13 @@ function App() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-white font-semibold">Raw Materials</h3>
                       <div className="flex items-center space-x-4">
-                        <button className="text-yellow-500 hover:text-yellow-400">
+                        <button 
+                          className="text-yellow-500 hover:text-yellow-400"
+                          onClick={handleImportCsv}
+                          disabled={csvUploading}
+                        >
                           <i className="fa-solid fa-file-csv mr-2"></i>
-                          Import Materials CSV
+                          {csvUploading ? 'Importing...' : 'Import Materials CSV'}
                         </button>
                         <button 
                           className="text-yellow-500 hover:text-yellow-400"
@@ -449,7 +572,7 @@ function App() {
                                 />
                               </td>
                               <td className="p-3 w-1/6 text-white">₹{material.totalCost.toFixed(2)}</td>
-                              <td className="p-3 w-1/6">
+                              <td className="p-3">
                                 <select 
                                   className="w-full bg-transparent text-white focus:outline-none border-0"
                                   value={guardrails.certifications[0]}
@@ -460,7 +583,7 @@ function App() {
                                   <option value="HACCP">HACCP</option>
                                 </select>
                               </td>
-                              <td className="p-3 w-12">
+                              <td className="p-3">
                                 {materials.length > 1 && (
                                   <button 
                                     className="text-gray-400 hover:text-red-500"
@@ -554,7 +677,7 @@ function App() {
         </div>
       </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
