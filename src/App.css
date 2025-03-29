@@ -486,10 +486,70 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.center-container > * {
+  width: 100%;
 }
 
 @media (min-width: 1600px) {
   .center-container {
     max-width: 1400px;
   }
+}
+
+@media (min-width: 2000px) {
+  .center-container {
+    max-width: 1800px;
+  }
+}
+
+@media (min-width: 3000px) {
+  .center-container {
+    max-width: 2400px;
+  }
+}
+
+@media (min-width: 4000px) {
+  .center-container {
+    max-width: 3000px;
+  }
+}
+
+@media (min-width: 5000px) {
+  .center-container {
+    max-width: 3600px;
+  }
+}
+
+/* Ensure the main container is centered on all screen sizes */
+.min-h-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* Ensure main content is centered */
+main.py-8 {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Ensure header is centered */
+header.border-b {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Ensure all content is centered on very large screens */
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
